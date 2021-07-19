@@ -119,8 +119,6 @@ class Parser:
                 except Exception as error:
                     print("error: ", error)
 
-            self.show()
-
             await session.close()
 
         return
