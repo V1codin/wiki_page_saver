@@ -1,6 +1,18 @@
 import webbrowser
 
-CHROME_PATH = "C:/Users/Kirill/AppData/Local/Google/Chrome/Application/chrome.exe"
+from os import environ
+from os.path import join
+
+
+CHROME_PATH = join(
+    environ["USERPROFILE"],
+    "AppData",
+    "Local",
+    "Google",
+    "Chrome",
+    "Application",
+    "chrome.exe",
+)
 
 
 class Browser:
@@ -20,4 +32,3 @@ class Browser:
     def openTab(self, url):
         webbrowser.get(self.browserName).open_new_tab(url)
         return
-

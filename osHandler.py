@@ -2,7 +2,7 @@ import os
 from urllib import request
 from urllib.parse import urljoin, unquote
 from unidecode import unidecode
-import re
+from re import sub
 
 
 class OsHandler:
@@ -21,7 +21,8 @@ class OsHandler:
 
         currentDir = os.getcwd()
 
-        childDirName = re.sub(r"<[^>]*>", "/", dirName)
+        # childDirName = re.sub(r"<[^>]*>", "/", dirName)
+        childDirName = sub(r"<[^>]*>", "/", dirName)
 
         if os.listdir(currentDir).count(childDirName) > 0:
             os.chdir(os.path.join(currentDir, childDirName))

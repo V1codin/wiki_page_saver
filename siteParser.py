@@ -2,28 +2,25 @@ import asyncio
 import aiohttp
 
 
-import re
+from re import sub
 from bs4 import BeautifulSoup, SoupStrainer
 from browserHandler import Browser
 from osHandler import OsHandler
 
-from console import console
-
-
-browser = Browser()
-os_handler = OsHandler()
+#from console import console
 
 
 class Parser:
     def __init__(self):
-
         self.images = []
         self.url = "https://ru.wikipedia.org"
         self.mainPage = "https://ru.wikipedia.org"
         self.randomPage = "/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:%D0%A1%D0%BB%D1%83%D1%87%D0%B0%D0%B9%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0"
-        # self.randomPage = "/wiki/Special:Random"
         self.mainLink = ""
         self.cssNumber = 0
+
+        self.browser = Browser()
+        self.os_handler = OsHandler()
 
         self.hide = None
         self.show = None
@@ -41,14 +38,14 @@ class Parser:
             href = item["href"]
 
             css = str(
-                os_handler.urlOpen(
+                self.os_handler.urlOpen(
                     url=href, domainName=self.mainPage
                 ).read()
             )[2:-1]
 
             self.cssNumber += 1
 
-            fileKey, fileName = os_handler.writeToFile(
+            fileKey, fileName = self.os_handler.writeToFile(
                 css,
                 "css",
                 f"style{self.cssNumber}",
@@ -64,7 +61,8 @@ class Parser:
         for image in soup.find_all("img"):
 
             src = image.get("src")
-            link = re.sub(r"^(\/{1,2})", "", src)
+            # link = re.sub(r"^(\/{1,2})", "", src)
+            link = sub(r"^(\/{1,2})", "", src)
 
             if link.find("static") != -1:
                 continue
@@ -75,7 +73,7 @@ class Parser:
 
             imageName = f"image{len(self.images)}.{extension}"
 
-            url = os_handler.saveImgByUrl(link, imageName)
+            url = self.os_handler.saveImgByUrl(link, imageName)
             if url != None:
                 self.images.append(url)
                 image["src"] = imageName
@@ -105,21 +103,22 @@ class Parser:
 
                     article = soup.find("h1").get_text()
 
-                    os_handler.changeDir(dirName=article)
+                    self.os_handler.changeDir(dirName=article)
 
                     rowHtml = self.htmlConstructor(soup)
 
-                    htmlAttrTuple = os_handler.writeToFile(
+                    htmlAttrTuple = self.os_handler.writeToFile(
                         rowHtml, "html"
                     )
 
                     self.__setattr__(*htmlAttrTuple)
 
-                    browser.openTab(self.mainLink)
+                    self.browser.openTab(self.mainLink)
                 except Exception as error:
                     print("error: ", error)
 
             await session.close()
+            self.show()
 
         return
 
