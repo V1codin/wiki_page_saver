@@ -30,11 +30,16 @@ class Parser:
         self.randomPage = "/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:%D0%A1%D0%BB%D1%83%D1%87%D0%B0%D0%B9%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0"
         # self.randomPage = "/wiki/Special:Random"
         self.mainLink = ""
+        self.cssNumber = 0
+
+        self.hide = None
+        self.show = None
 
     def getRandomPage(self):
         return self.url + self.randomPage
 
     def isConvenientImgTag(self, tag):
+        # deprecated
         return (
             tag.has_attr("width") and int(tag.get("width")) > 200
             if tag.has_attr("width")
@@ -43,6 +48,7 @@ class Parser:
         )
 
     def imgReducer(self, image):
+        # deprecated
         srcet = image.get("srcset")
 
         if bool(srcet) is not False:
@@ -63,62 +69,86 @@ class Parser:
         return self.mainLink
 
     def getCSSHref(self, soup, sets={"rel": "stylesheet"}):
+        # deprecated
         self.cssLink = soup.find("link", sets)["href"]
         return self.cssLink
 
-    def setHeader(self, arr):
-        cssLinks = [
-            item for item in arr if item["rel"][0] == "stylesheet"
-        ]
+    def setHeader(self, soup, rowHead):
 
-        for x in range(len(arr)):
-            if x < len(cssLinks):
+        for item in rowHead:
+            href = item["href"]
 
-                arr[x].replace_with(cssLinks[x])
-            else:
-                arr[x].decompose()
-        console.log(arr)
-        """
-        cssLinks = [
-            item["href"]
-            for item in arr
-            if not item.find("stylesheet")
-        ]
+            css = str(
+                os_handler.urlOpen(
+                    url=href, domainName=self.mainPage
+                ).read()
+            )[2:-1]
 
-        console.log("cssLinks: ", cssLinks)
-        """
-        """
-        cssLinks = [
-            item for item in arr if not item.find("stylesheet")
-        ]
-        """
+            self.cssNumber += 1
 
-        # return cssLinks
+            fileKey, fileName = os_handler.writeToFile(
+                css,
+                "css",
+                f"style{self.cssNumber}",
+            )
+            item["href"] = fileName
+
+        head = soup.new_tag("head")
+        head.extend(rowHead)
+
+        return head
+
+    def setImages(self, soup):
+        # https://ru.wikipedia.org/wiki/%D0%92%D0%B0%D0%BB%D1%8C%D0%B4%D0%B5%D0%BD%D0%B3%D0%BE
+        for image in soup.find_all("img"):
+
+            src = image.get("src")
+            link = re.sub(r"^(\/{1,2})", "", src)
+
+            if link.find("static") != -1:
+                continue
+
+            """
+            srcet = image.get("srcset")
+            if not srcet:
+                continue
+            rowLink = srcet.split(", ")[-1].split()[0]
+            link = re.sub(r"^(\/{1,2})", "", rowLink)
+
+            if link.find("static") != -1:
+                continue
+            """
+            extension = link.split(".")[-1]
+            if len(extension) > 4:
+                continue
+
+            imageName = f"image{len(self.images)}.{extension}"
+
+            url = os_handler.saveImgByUrl(link, imageName)
+            if url != None:
+                self.images.append(url)
+                image["src"] = imageName
+                image["srcset"] = [imageName]
+
+    def htmlConstructor(self, soup):
+        head = self.setHeader(
+            soup, soup.find_all("link", rel="stylesheet")
+        )
+        soup.head.replace_with(head)
+
+        self.setImages(soup)
+
+        return soup
 
     def changeCSSLink(self, soup):
+        # deprecated
         html = soup.prettify()
 
-        cssLinks = self.setHeader(soup.findAll("link"))
-        """
-        head = soup.find("head").contents[:3]
-        head.append(
-            f"<link rel='stylesheet' href='{self.styleFile}'>"
-        )
-        console.log("head: ", head)
-        """
         html = re.sub(
             r"<link[^>]+>",
             f"<link rel='stylesheet' href='{self.styleFile}'>",
             html,
         )
-
-        """
-        html = re.sub(
-            r"<link[^>]+>",
-            f"<link rel='stylesheet' href='{self.styleFile}'>",
-            html,
-        )
-        """
 
         return html
 
@@ -128,11 +158,13 @@ class Parser:
             async with session.get(url) as resp:
                 content = await resp.text()
 
-                soup = BeautifulSoup(content, "html.parser")
+                self.hide()
 
-                browser.openTab(self.getMainHref(soup))
+                soup = BeautifulSoup(content, "html.parser")
+                self.mainLink = self.getMainHref(soup)
 
                 rowArticle = str(soup.find("h1").contents[0])
+
                 article = (
                     rowArticle
                     if rowArticle.count("<") == 0
@@ -140,29 +172,35 @@ class Parser:
                 )
                 os_handler.changeDir(dirName=article)
 
-                rowCss = str(
+                """
+                old working for one css style!!
+
+                css = str(
                     os_handler.urlOpen(
                         url=self.getCSSHref(soup),
                         domainName=self.mainPage,
                     ).read()
                 )[2:-1]
-                css = rowCss
 
                 cssAttrTuple = os_handler.writeToFile(
                     css,
                     "css",
                     "style",
                 )
-                self.__setattr__(*cssAttrTuple)
 
+                self.__setattr__(*cssAttrTuple)
+                
                 rowHtml = self.changeCSSLink(soup)
+                """
+                rowHtml = self.htmlConstructor(soup)
 
                 htmlAttrTuple = os_handler.writeToFile(
                     rowHtml, "html"
                 )
 
                 self.__setattr__(*htmlAttrTuple)
-
+                """
+                old image saver
                 imgSrc = [
                     self.imgReducer(image=x)
                     for x in soup.find_all(self.isConvenientImgTag)
@@ -170,13 +208,23 @@ class Parser:
 
                 if len(imgSrc) > 0:
                     for i in imgSrc:
+                        url, imgName = os_handler.saveImgByUrl(url=i)
                         self.images.append(
-                            os_handler.saveImgByUrl(url=i)
+                            url
                         )
+                """
+
+            browser.openTab(self.mainLink)
+            self.show()
+
             await session.close()
+
         return
 
-    def looping(self, url):
+    def looping(self, url, actions: tuple):
+        hide, show = actions
+        self.hide = hide
+        self.show = show
         # url = "https://ru.wikipedia.org/wiki/%D0%A2%D0%B8%D1%85%D0%B0%D1%8F_(%D0%BF%D0%BE%D1%81%D1%91%D0%BB%D0%BE%D0%BA_%D0%B6%D0%B5%D0%BB%D0%B5%D0%B7%D0%BD%D0%BE%D0%B4%D0%BE%D1%80%D0%BE%D0%B6%D0%BD%D0%BE%D0%B9_%D1%81%D1%82%D0%B0%D0%BD%D1%86%D0%B8%D0%B8,_%D0%9F%D0%B5%D1%80%D0%BC%D1%81%D0%BA%D0%B8%D0%B9_%D0%BA%D1%80%D0%B0%D0%B9)"
         # url = "https://ru.wikipedia.org/wiki/%D0%9C%D1%8E%D0%BD%D1%81%D1%82%D0%B5%D1%80-%D0%97%D0%B0%D1%80%D0%BC%D1%81%D1%85%D0%B0%D0%B9%D0%BC"
         loop = asyncio.get_event_loop()

@@ -1,6 +1,7 @@
 import os
 from urllib import request
-from urllib.parse import urljoin
+from urllib.parse import urljoin, unquote
+from unidecode import unidecode
 import re
 
 
@@ -32,28 +33,37 @@ class OsHandler:
 
     def urlOpen(self, url, domainName="http://"):
         link = f"{domainName}{url}"
-        res = request.urlopen(link)
-        code = res.getcode()
-        return res if code == 200 else None
+        try:
+            res = request.urlopen(link)
+            code = res.getcode()
+            return res if code == 200 else None
+        except Exception as error:
+            print("error: ", error)
+            print("error url", url)
 
-    def saveImgByUrl(self, url):
+    def saveImgByUrl(self, url, imgName):
         if type(url) is not str:
             return
 
-        res = re.search(r"\/[^\/]+$", url, flags=re.MULTILINE)
+        # res = re.search(r"\/[^\/]+$", url, flags=re.MULTILINE)
 
-        if res:
-            startIndex = res.start()
+        # if res:
+        if self.urlOpen(url) == None:
+            return None
 
-            imgName = url[startIndex + 1 : :]
+            # startIndex = res.start()
 
-            assert self.urlOpen(url) != None
+            # imgName = unidecode(unquote(url[startIndex + 1 : :]))
+
+        try:
             img = self.urlOpen(url).read()
             out = open(imgName, "wb")
             out.write(img)
             out.close()
-
-        return url
+            return url
+        except Exception as error:
+            print("error: ", error)
+            print("error url", url)
 
     def writeToFile(self, str, extension="txt", name="html"):
         fileName = f"{name}.{extension}"

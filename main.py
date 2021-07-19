@@ -1,5 +1,13 @@
 import sys
-from PySide2.QtWidgets import QApplication, QMainWindow, QLineEdit
+from PySide2.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QLineEdit,
+    QSystemTrayIcon,
+    QStyle,
+    QMenu,
+    QAction,
+)
 from PySide2.QtCore import QFile
 from PySide2.QtGui import QFocusEvent
 from ui import Ui_App
@@ -15,6 +23,15 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.ui.randomPageBtn.setDefault(True)
         self.ui.randomPageBtn.setFocus()
+
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(
+            self.style().standardIcon(QStyle.SP_TitleBarMenuButton)
+        )
+
+        self.tray_menu = QMenu()
+        self.tray_icon.setContextMenu(self.tray_menu)
+        self.tray_icon.show()
 
     def lineEditFocusIn(self, e):
         self.ui.lineEdit.setText("")
@@ -35,11 +52,21 @@ if __name__ == "__main__":
     window.ui.quitBtn.clicked.connect(lambda: app.exit())
 
     window.ui.getBtn.clicked.connect(
-        lambda: parser.looping(window.ui.lineEdit.text())
+        lambda: parser.looping(
+            window.ui.lineEdit.text(), (window.hide, window.show)
+        )
     )
 
+    """
+    window.ui.getBtn.clicked.connect(
+        lambda: parser.looping(window.ui.lineEdit.text())
+    )
+    """
+
     window.ui.randomPageBtn.clicked.connect(
-        lambda: parser.looping(parser.getRandomPage())
+        lambda: parser.looping(
+            parser.getRandomPage(), (window.hide, window.show)
+        )
     )
 
     window.ui.lineEdit.focusInEvent = window.lineEditFocusIn
