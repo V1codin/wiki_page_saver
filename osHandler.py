@@ -45,15 +45,8 @@ class OsHandler:
         if type(url) is not str:
             return
 
-        # res = re.search(r"\/[^\/]+$", url, flags=re.MULTILINE)
-
-        # if res:
         if self.urlOpen(url) == None:
             return None
-
-            # startIndex = res.start()
-
-            # imgName = unidecode(unquote(url[startIndex + 1 : :]))
 
         try:
             img = self.urlOpen(url).read()
